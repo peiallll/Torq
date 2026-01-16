@@ -52,7 +52,7 @@ def is_number(token): ## helper function to check whether tokens are number whil
         return False
 
 
-def tokenizer_commands(tokenized, command):
+def tokenizer_commands(tokenized, command): ##  main function for if user inputs and COMMAND (e.g MOVE)
     
     current_subcommands = []
     current_number_args = []
@@ -171,21 +171,29 @@ def condition_builder(tokens_sorted, tokenized, first_word):
         node_dict.update({
             "type": "logical",
             "op": logical_op,
-            "left": condition_builder(left_tokens_sorted, left_tokens, first_word),
-            "right": condition_builder(right_tokens_sorted, right_tokens, first_word)
+            "left": condition_builder(left_tokens_sorted, left_tokens, first_word), ## dict = {"type", "logical", "op": and, "left": {x > 5}, "right": {x < 10}}
+            "right": condition_builder(right_tokens_sorted, right_tokens, first_word)#                                               ^^^^^              ^^^^^^^ run token builder on these again to get type, op, left, right. 
         })
         
     return node_dict
 
+def checkForIndentation(current_indent, previous_indent):
+    if current_indent > previous_indent:
+        return "down_one_level"
+    elif current_indent == previous_indent:
+        return "same_block"
+    elif current_indent < previous_indent:
+        return "up_one_level"
+
 def tokenizer_statements(tokenized, first_word, user_input):
-    expectIndentation = True
-    const_indentation = 4
-
-    #condition = 
-
-    #IfNode(condition)
-    ################ complete this
-
+    tokens_sorted = token_sorter(tokenized[1:], first_word)
+    condition = condition_builder(tokens_sorted, tokenized[1:], first_word)
+    
+    node = IfNode(condition)
+    #finish
+    
+current_indent = 0
+previous_indent = 0
 
 while True:
     user_input = input("> ")
@@ -195,6 +203,22 @@ while True:
     if user_input.strip() == "": #ignore blank lines
         continue
     else:
+        previous_indent = current_indent ## first pass: prev_indent = 0
+        current_indent = 0
+
+        for char in user_input:
+            if char == " ":
+                current_indent += 1
+            elif char != " ":
+                break
+        
+        if previous_indent % 4 != 0 or current_indent % 4 != 0:
+            print(f"Error: indentation has to be 4 spaces, not {current_indent}")
+
+        line_state = checkForIndentation(current_indent, previous_indent)
+        if line_state == "down_one_level":
+
+
         line_length = len(tokenized)
         first_word = tokenized[0]
 
