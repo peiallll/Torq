@@ -1,4 +1,4 @@
-from main import MoveNode, TurnNode, WaitNode, IfNode, SetNode, UpdateNode
+from main import Node, MoveNode, TurnNode, WaitNode, IfNode, SetNode, UpdateNode
 from main import variables
 
 # ============================================================================
@@ -7,6 +7,7 @@ from main import variables
 
 user_lines = {}
 program_nodes = []
+stack = []
 
 statement_nodes = {
     "if": {
@@ -335,6 +336,8 @@ while True:
 
         type_of_logic = check_which_node_type(first_word)
 
+        node = None
+
         if type_of_logic == "command":
             if current_indent == 0:
                 program_nodes.append(handle_commands(tokenized, first_word))
@@ -351,3 +354,18 @@ while True:
         elif type_of_logic == "neither":
             print("Error: invalid input")
             continue
+
+
+        indentation_type = checkForIndentation(current_indent, previous_indent)
+        if indentation_type == "up_one_level":
+            stack.pop()
+        
+        if node is not None:
+            if current_indent == 0:
+                program_nodes.append(node)
+            
+            if current_indent != 0:
+                stack[-1].add_children(node)
+
+            if isinstance(node, IfNode):
+                stack.append(node)
