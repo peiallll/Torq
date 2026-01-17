@@ -1,6 +1,13 @@
-from main import MoveNode, TurnNode, WaitNode, IfNode
+from main import MoveNode, TurnNode, WaitNode, IfNode, SetNode, UpdateNode
+from main import variables
+
+# ============================================================================
+# GLOBAL VARIABLES & MAIN DICTIONARIES
+# ============================================================================
 
 user_lines = {}
+program_nodes = []
+
 statement_nodes = {
     "if": {
         "expressions": ["==", "!=", "+", "-", "*", "**", ">", "<", ">=", "=>", "=<", "<="],
@@ -31,18 +38,22 @@ command_nodes = { #dictionary to store valid commnds and subcommands (MOVE forwa
         "subcommands": [],
         "expected_number_args": 1,
         "expected_subcommands": 0,
-        "units": ["ms", "s"],
         "optional_subcommands": [],
         "expected_optional_subcommands": 0
     },
-    "SET": {
-        "subcommands": ["moveSpeed", "turnSpeed"],
-        "expected_subcommands": 1,
-        "expected_number_args": 1,
-        "optional_subcommands": [],
-        "expected_optional_subcommands": 0
-    }
 }
+
+special_command_nodes = {
+    "SET",
+    "UPDATE"
+}
+current_indent = 0
+previous_indent = 0
+
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
 
 def is_number(token): ## helper function to check whether tokens are number while handling loat inputs
     try:
@@ -51,65 +62,166 @@ def is_number(token): ## helper function to check whether tokens are number whil
     except ValueError:
         return False
 
+def is_variable(token):
+    try:
+        float(token)
+        return False
+    except ValueError:
+        if token in command_nodes or token in statement_nodes:
+            return False
 
-def tokenizer_commands(tokenized, command): ##  main function for if user inputs and COMMAND (e.g MOVE)
+        for node_dict in (statement_nodes, command_nodes):
+            for key, value in node_dict.items():
+                if isinstance(value, dict):
+                    if token in value:
+                        return False
     
-    current_subcommands = []
-    current_number_args = []
-    current_optional_args = []
-
-    if command not in command_nodes:
-        print("Error: invalid command")
-        return
+    return True
             
-    current_valid_subcommands = command_nodes[command]["subcommands"]
-    current_valid_optional_subcommands = command_nodes[command]["optional_subcommands"]
-
-
-    for token in tokenized[1:]: # loop through non-command (0 index) tokens.categorise and sort them into lists
-        if token in current_valid_subcommands:
-            current_subcommands.append(token)
-        elif is_number(token):
-            current_number_args.append(float(token))
-        elif token in current_valid_optional_subcommands:
-            current_optional_args.append(token)
-        else:
-            print("Error: couldnt find at least one of those arguments.")
-            return
-            
-    print(current_subcommands); print(current_number_args); print(current_optional_args)
-    ## to line 91: check whether user has inputted correct amount of subcommands, number arguments, and optional subcommands. f.e MOVE requires there to be NO optional subcommands ('MOVE forward 10')
-    expected_number_args = command_nodes[command]["expected_number_args"]; expected_subcommands = command_nodes[command]["expected_subcommands"]; expected_optional_subcommands = command_nodes[command]["expected_optional_subcommands"]
-            
-    current_lists = [current_subcommands, current_number_args, current_optional_args]
-    expected_lists = [expected_number_args, expected_subcommands, expected_optional_subcommands]
-
-    for index in range(len(current_lists)):
-        if check_list_lengths(expected_lists[index], current_lists[index]) != True: 
-            print("invalid amount of subcommands/args/numbers")
-            return
-    
-    print("RUN THE COMMAND")### TO-DO, create a node, execute the commands, link to rasberry pi
-            
-
-
-def check_which_node_type(command): # helper function to determine node type (command, statement, or other (placeholder))
-    if command.isupper() and command in command_nodes:
-        return "command"
-    elif command.islower() and command in statement_nodes:
-        return "statement"
-    else:
-        return "neither"
-    
 def check_list_lengths(expected_args, current_args):
     if len(current_args) != expected_args:
         return False
     else:
         return True
+
+
+def check_which_node_type(command): # helper function to determine node type (command, statement, or other (placeholder))
+    if command.isupper() and command in command_nodes:
+        return "command"
+    elif command.isupper() and command in special_command_nodes:
+        return "special_command"
+    elif command.islower() and command in statement_nodes:
+        return "statement"
+    else:
+        return "neither"
+
+
+def checkForIndentation(current_indent, previous_indent):
+    if current_indent > previous_indent:
+        return "down_one_level"
+    elif current_indent == previous_indent:
+        return "same_block"
+    elif current_indent < previous_indent:
+        return "up_one_level"
+
+def validate_commands(current_subcommands, current_valid_subcommands, expected_subcommands, current_number_args, expected_number_args, current_optional_args, current_valid_optional_args, expected_optional_args, command):
+    if type_of_logic == "command":
+
+        for token in tokenized[1:]: # loop through non-command (0 index) tokens.categorise and sort them into lists
+            if token in current_valid_subcommands:
+                current_subcommands.append(token)
+            elif is_number(token):
+                current_number_args.append(float(token))
+            elif token in current_valid_optional_args:
+                current_optional_args.append(token)
+            else:
+                print("Error: couldnt find at least one of those arguments.")
+                return False
+                
+        print(current_subcommands); print(current_number_args); print(current_optional_args)
+        ## to line 116: check whether user has inputted correct amount of subcommands, number arguments, and optional subcommands. f.e MOVE requires there to be NO optional subcommands ('MOVE forward 10')
+        expected_number_args = command_nodes[command]["expected_number_args"]; expected_subcommands = command_nodes[command]["expected_subcommands"]; expected_optional_args = command_nodes[command]["expected_optional_subcommands"]
+                
+        current_lists = [current_subcommands, current_number_args, current_optional_args]
+        expected_lists = [expected_number_args, expected_subcommands, expected_optional_args]
+
+        for index in range(len(current_lists)):
+            if check_list_lengths(expected_lists[index], current_lists[index]) != True: 
+                print("Error: invalid amount of subcommands/args/numbers")
+                return False
+            
+        return True
+    
+    else:
+        print("thats not a command")
+        return    
+
+# ============================================================================
+# COMMAND PARSING
+# ============================================================================
+
+def handle_commands(tokenized, command): ##  main function for if user inputs and COMMAND (e.g MOVE)
+    
+    current_subcommands = []
+    current_number_args = []
+    current_optional_args = []
+
+    current_valid_subcommands = command_nodes[command]["subcommands"]
+    expected_subcommands = command_nodes[command]["expected_subcommands"]
+
+    expected_number_args = command_nodes[command]["expected_number_args"]
+
+    current_valid_optional_args = command_nodes[command]["optional_subcommands"]
+    expected_optional_args = command_nodes[command]["expected_optional_subcommands"]
+
+    if command not in command_nodes:
+        print("Error: invalid command")
+        return
+            
+    validated = validate_commands(current_subcommands, current_valid_subcommands, expected_subcommands, current_number_args, expected_number_args, current_optional_args, current_valid_optional_args, expected_optional_args, command)
+    
+    if validated == False:
+        print("ERROR")
+        return
+    
+    if command == "MOVE":
+        node = MoveNode(current_subcommands[0], current_number_args[0])
+    elif command == "TURN":
+        node = TurnNode(current_subcommands[0], current_number_args[0])
+    elif command == "WAIT":
+        node = WaitNode(current_number_args[0])
+    elif command == "SET":
+        node = SetNode()
+    
+    return node
+
+# ============================================================================
+# SPECIAL COMMAND PARSING
+# ============================================================================
+
+def handle_special_command(tokenized, command): # special commands: SET / UPDATE
+    
+    if "as" not in tokenized:
+        print("Error, SET or UPDATE commands must have 'as' (e.g SET distance as 5")
+        return
+    
+    as_index = tokenized.index("as")
+    left = tokenized[1:as_index]
+    right = tokenized[as_index + 1:] 
+    ## SET x as 5 ; UPDATE x as 5
+    if len(left) != 1 or is_variable(left[0]) == False:
+        print("Error. left args count must equal to 1, and must be a new variable name.")
+        return
+    
+    if len(right) != 1:
+        print("Error. right args count must equal to 1. ")
+        return
+    
+    if command == "SET":
+        if is_variable(right[0]):
+            if right[0] not in variables:
+                print(f"Error. {right[0]} is not an existing variable. Define that using SET first.")
+                return
+        
+        node = SetNode(left[0], right[0])
+        
+    elif command == "UPDATE":
+        if left[0] not in variables:
+            print(f"Error. Variable {left[0]} does not exist and so cannot be updated. Use SET to define a new variable.")
+            return
+
+        if is_variable(right[0]) == True and right[0] not in variables:
+            print(f"Error. {right[0]} is not an existing variable. Define that using SET first.")
+            return
+    
+        node = UpdateNode(left[0], right[0])
     
 
-def token_sorter(tokenized, first_word):
+# ============================================================================
+# STATEMENT/CONDITION PARSING
+# ============================================================================
 
+def token_sorter(tokenized, first_word):
     tokens_sorted = {}
 
     s_current_number_args = []
@@ -130,6 +242,10 @@ def token_sorter(tokenized, first_word):
         except ValueError:
             current_variables.append(token)
             
+        else:
+            print("ERROR")
+            return
+
     tokens_sorted.update({
         "numbers": s_current_number_args,
         "expressions": current_expressions,
@@ -138,7 +254,7 @@ def token_sorter(tokenized, first_word):
     })
 
     return tokens_sorted
-        
+
 
 def condition_builder(tokens_sorted, tokenized, first_word):
     condition = ""
@@ -177,23 +293,21 @@ def condition_builder(tokens_sorted, tokenized, first_word):
         
     return node_dict
 
-def checkForIndentation(current_indent, previous_indent):
-    if current_indent > previous_indent:
-        return "down_one_level"
-    elif current_indent == previous_indent:
-        return "same_block"
-    elif current_indent < previous_indent:
-        return "up_one_level"
 
-def tokenizer_statements(tokenized, first_word, user_input):
+def create_statement_node(tokenized, first_word, user_input):
     tokens_sorted = token_sorter(tokenized[1:], first_word)
+
     condition = condition_builder(tokens_sorted, tokenized[1:], first_word)
     
-    node = IfNode(condition)
-    #finish
+    if first_word == "if":
+        node = IfNode(condition)
     
-current_indent = 0
-previous_indent = 0
+    return node
+
+
+# ============================================================================
+# MAIN PROGRAM LOOP
+# ============================================================================
 
 while True:
     user_input = input("> ")
@@ -213,23 +327,28 @@ while True:
                 break
         
         if previous_indent % 4 != 0 or current_indent % 4 != 0:
-            print(f"Error: indentation has to be 4 spaces, not {current_indent}")
+            print(f"Error: indentation has to be 4,8,12,16,20 spaces etc, not {current_indent}")
 
         line_state = checkForIndentation(current_indent, previous_indent)
-        if line_state == "down_one_level":
-
 
         line_length = len(tokenized)
         first_word = tokenized[0]
+        command = first_word
 
         type_of_logic = check_which_node_type(first_word)
 
         if type_of_logic == "command":
-            tokenizer_commands(tokenized, first_word)
-
+            if current_indent == 0:
+                program_nodes.append(create_statement_node(tokenized, first_word, user_input))
+            
+            if command in command_nodes:
+                handle_commands(tokenized, first_word)
+            
         elif type_of_logic == "statement":
-            tokenizer_statements(tokenized, first_word, user_input)
+            create_statement_node(tokenized, first_word, user_input)
             #TO-DO: statemenet parser + tokenizer
+        elif type_of_logic == "special_command":
+            handle_special_command(tokenized, first_word)
 
         elif type_of_logic == "neither":
             print("Error: invalid input")

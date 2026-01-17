@@ -1,3 +1,5 @@
+variables = []
+
 class Node:
     def __init__(self, node_type, args=None):
         self.type = node_type
@@ -22,7 +24,7 @@ class MoveNode(Node):
 
 
 class TurnNode(Node):
-    def __init__(self, speed, angle, direction):
+    def __init__(self, direction, angle):
         super().__init__("TURN", args={"direction": direction, "angle": angle})
 
     def execute(self):
@@ -37,6 +39,31 @@ class WaitNode(Node):
     def execute(self):
         time = self.args["time"]
             
+class SetNode(Node):
+    def __init__(self, user_variable, value):
+        super().__init__("SET", args={"user_variable": user_variable, "value": value})
+
+    def execute(self):
+        variable_name = self.args["user_variable"]
+        value = self.args["value"]
+
+        if isinstance(value, (int, float)):
+            variables[variable_name] = value
+        else:
+            variables[variable_name] = variables[value]
+
+class UpdateNode(Node):
+    def __init__(self, user_variable, value):
+        super().__init__("SET", args={"user_variable": user_variable, "value": value})
+
+    def execute(self):
+        variable_name = self.args["user_variable"]
+        value = self.args["value"]
+
+        if isinstance(value, (int, float)):
+            variables[variable_name] = value
+        else:
+            variables[variable_name] = variables[value]
 
 class IfNode(Node):
     def __init__(self, condition):
