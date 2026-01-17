@@ -69,12 +69,13 @@ def is_variable(token):
     except ValueError:
         if token in command_nodes or token in statement_nodes:
             return False
-
-        for node_dict in (statement_nodes, command_nodes):
-            for key, value in node_dict.items():
-                if isinstance(value, dict):
-                    if token in value:
-                        return False
+        # keywords are buried deep in dictionaries
+        for node_dict in (statement_nodes, command_nodes): #node_dict - whole nodes dictionary
+            for key, value in node_dict.items(): #key(useless right now) f.e : MOVE;  |||  value f.e: {"subcommands": [forward,backward]}
+                if isinstance(value, dict): #extra precaution to only check dictionaries
+                    for list_value in value.values: #1st list value f.e: [forward,backward] (its  a VALUE of well, value (the dictionary))
+                        if isinstance(list_value, list) and token in list_value: #is list_value actually a list? [forward,backward] and is the token in it?
+                            return False #if it is, the token is a keyword
     
     return True
             
@@ -104,7 +105,7 @@ def checkForIndentation(current_indent, previous_indent):
     elif current_indent < previous_indent:
         return "up_one_level"
 
-def validate_commands(current_subcommands, current_valid_subcommands, expected_subcommands, current_number_args, expected_number_args, current_optional_args, current_valid_optional_args, expected_optional_args, command):
+def validate_commands(current_subcommands, current_valid_subcommands, expected_subcommands, current_number_args, expected_number_args, current_optional_args, current_valid_optional_args, expected_optional_args, command, tokenized, type_of_logic):
     if type_of_logic == "command":
 
         for token in tokenized[1:]: # loop through non-command (0 index) tokens.categorise and sort them into lists
@@ -158,7 +159,7 @@ def handle_commands(tokenized, command): ##  main function for if user inputs an
         print("Error: invalid command")
         return
             
-    validated = validate_commands(current_subcommands, current_valid_subcommands, expected_subcommands, current_number_args, expected_number_args, current_optional_args, current_valid_optional_args, expected_optional_args, command)
+    validated = validate_commands(current_subcommands, current_valid_subcommands, expected_subcommands, current_number_args, expected_number_args, current_optional_args, current_valid_optional_args, expected_optional_args, command, tokenized, type_of_logic)
     
     if validated == False:
         print("ERROR")
@@ -216,6 +217,7 @@ def handle_special_command(tokenized, command): # special commands: SET / UPDATE
     
         node = UpdateNode(left[0], right[0])
     
+    return node
 
 # ============================================================================
 # STATEMENT/CONDITION PARSING
@@ -241,10 +243,6 @@ def token_sorter(tokenized, first_word):
             s_current_number_args.append(token)
         except ValueError:
             current_variables.append(token)
-            
-        else:
-            print("ERROR")
-            return
 
     tokens_sorted.update({
         "numbers": s_current_number_args,
@@ -339,16 +337,16 @@ while True:
 
         if type_of_logic == "command":
             if current_indent == 0:
-                program_nodes.append(create_statement_node(tokenized, first_word, user_input))
+                program_nodes.append(handle_commands(tokenized, first_word))
             
             if command in command_nodes:
-                handle_commands(tokenized, first_word)
+                node = handle_commands(tokenized, first_word) #RETRIEVE NODE FOR COMMANDS (MOVE,TURN ETC)
             
         elif type_of_logic == "statement":
-            create_statement_node(tokenized, first_word, user_input)
-            #TO-DO: statemenet parser + tokenizer
+            node = create_statement_node(tokenized, first_word, user_input) #RETRIEVE NODE FOR CONDITIONAL STATEMENTS (IF)
+            
         elif type_of_logic == "special_command":
-            handle_special_command(tokenized, first_word)
+            node = handle_special_command(tokenized, first_word) #RETRIEVE NODE FOR SPECIAL COMMANDS (SET, UPDATE ETC)
 
         elif type_of_logic == "neither":
             print("Error: invalid input")
