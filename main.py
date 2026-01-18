@@ -77,4 +77,27 @@ class IfNode(Node):
             
 
 def evaluate(condition):
-    pass
+    if condition["type"] == "single": # f.e MOVE forward 10
+        left = condition["left"]
+        op = condition["op"]
+        right = condition["right"]
+
+        try:
+            left_value = variables[left]
+        except:
+            print("Error")
+        
+        right_value = int(right)
+
+        if op == "<":
+            boolVal = (left_value < right_value)
+        elif op == ">":
+            boolVal = (left_value > right_value)
+        elif op == "==":
+            boolVal = (left_value == right_value)
+        elif op == "!=":
+            boolVal = (left_value != right_value)
+        elif op == ">=" or op == "=>":
+            boolVal = (left_value >= right_value)
+        elif op == "=<" or op == "<=":
+            boolVal = (left_value =< right_value)

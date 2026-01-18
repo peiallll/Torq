@@ -74,7 +74,7 @@ def is_variable(token):
         for node_dict in (statement_nodes, command_nodes): #node_dict - whole nodes dictionary
             for key, value in node_dict.items(): #key(useless right now) f.e : MOVE;  |||  value f.e: {"subcommands": [forward,backward]}
                 if isinstance(value, dict): #extra precaution to only check dictionaries
-                    for list_value in value.values: #1st list value f.e: [forward,backward] (its  a VALUE of well, value (the dictionary))
+                    for list_value in value.values(): #1st list value f.e: [forward,backward] (its  a VALUE of well, value (the dictionary))
                         if isinstance(list_value, list) and token in list_value: #is list_value actually a list? [forward,backward] and is the token in it?
                             return False #if it is, the token is a keyword
     
@@ -100,11 +100,11 @@ def check_which_node_type(command): # helper function to determine node type (co
 
 def checkForIndentation(current_indent, previous_indent):
     if current_indent > previous_indent:
-        return "down_one_level"
+        return "indent"
     elif current_indent == previous_indent:
         return "same_block"
     elif current_indent < previous_indent:
-        return "up_one_level"
+        return "dedent"
 
 def validate_commands(current_subcommands, current_valid_subcommands, expected_subcommands, current_number_args, expected_number_args, current_optional_args, current_valid_optional_args, expected_optional_args, command, tokenized, type_of_logic):
     if type_of_logic == "command":
@@ -255,7 +255,7 @@ def token_sorter(tokenized, first_word):
     return tokens_sorted
 
 
-def condition_builder(tokens_sorted, tokenized, first_word):
+def condition_builder(tokens_sorted, tokenized, first_word): # returns 'condition' which is a dict which will get used in evaluate()
     condition = ""
 
     node_dict = {}
@@ -326,9 +326,7 @@ while True:
                 break
         
         if previous_indent % 4 != 0 or current_indent % 4 != 0:
-            print(f"Error: indentation has to be 4,8,12,16,20 spaces etc, not {current_indent}")
-
-        line_state = checkForIndentation(current_indent, previous_indent)
+            print(f"Error: indentation has to be 0,4,8,12,16,20 spaces etc, not {current_indent}")
 
         line_length = len(tokenized)
         first_word = tokenized[0]
@@ -339,11 +337,7 @@ while True:
         node = None
 
         if type_of_logic == "command":
-            if current_indent == 0:
-                program_nodes.append(handle_commands(tokenized, first_word))
-            
-            if command in command_nodes:
-                node = handle_commands(tokenized, first_word) #RETRIEVE NODE FOR COMMANDS (MOVE,TURN ETC)
+            node = handle_commands(tokenized, first_word) #RETRIEVE NODE FOR COMMANDS (MOVE,TURN ETC)
             
         elif type_of_logic == "statement":
             node = create_statement_node(tokenized, first_word, user_input) #RETRIEVE NODE FOR CONDITIONAL STATEMENTS (IF)
@@ -355,17 +349,22 @@ while True:
             print("Error: invalid input")
             continue
 
-
+        # ======= creating the AST. compares current indentation to previous indentation and acts upon that, appending to the stack only if its a conditional statement, popping elements of the stack
         indentation_type = checkForIndentation(current_indent, previous_indent)
-        if indentation_type == "up_one_level":
-            stack.pop()
+        if indentation_type == "dedent":
+            indent_levels_up = (previous_indent - current_indent) // 4 # floor for int
+
+            for _ in range(indent_levels_up):
+                if len(stack) > 0:
+                    stack.pop()
         
         if node is not None:
             if current_indent == 0:
                 program_nodes.append(node)
             
-            if current_indent != 0:
+            if current_indent != 0 and len(stack) > 0:
                 stack[-1].add_children(node)
 
             if isinstance(node, IfNode):
                 stack.append(node)
+        # ======
