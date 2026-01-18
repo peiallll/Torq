@@ -100,4 +100,4 @@ def evaluate(condition):
         elif op == ">=" or op == "=>":
             boolVal = (left_value >= right_value)
         elif op == "=<" or op == "<=":
-            boolVal = (left_value =< right_value)
+            boolVal = (left_value <= right_value)
