@@ -1,17 +1,17 @@
-from main import Node, MoveNode, TurnNode, WaitNode, IfNode, SetNode, UpdateNode
-from main import variables
+from nodes import Node, ProgramNode, MoveNode, TurnNode, WaitNode, IfNode, SetNode, UpdateNode
+from nodes import variables
 
 # ============================================================================
 # GLOBAL VARIABLES & MAIN DICTIONARIES
 # ============================================================================
 
 user_lines = {}
-program_nodes = []
-stack = []
+program_node = ProgramNode()
+stack = [program_node]
 
 statement_nodes = {
     "if": {
-        "expressions": ["==", "!=", "+", "-", "*", "**", ">", "<", ">=", "=>", "=<", "<="],
+        "expressions": ["==", "=/=", ">", "<", ">/=", "</="],
         "logic_statements": ["and", "or"],
         "expects_variable": True,
         "expected_variables": 2,
@@ -245,6 +245,11 @@ def token_sorter(tokenized, first_word):
         except ValueError:
             current_variables.append(token)
 
+    for logic_statement in current_logic_statements:
+        if logic_statement not in statement_nodes["if"]["expressions"]:
+            print("Error. Expression not found.")
+            return
+
     tokens_sorted.update({
         "numbers": s_current_number_args,
         "expressions": current_expressions,
@@ -308,63 +313,59 @@ def create_statement_node(tokenized, first_word, user_input):
 # MAIN PROGRAM LOOP
 # ============================================================================
 
-while True:
-    user_input = input("> ")
-    
-    tokenized = user_input.split()
-
-    if user_input.strip() == "": #ignore blank lines
-        continue
-    else:
-        previous_indent = current_indent ## first pass: prev_indent = 0
-        current_indent = 0
-
-        for char in user_input:
-            if char == " ":
-                current_indent += 1
-            elif char != " ":
-                break
+def run_program():
+    while True:
+        user_input = input("> ")
         
-        if previous_indent % 4 != 0 or current_indent % 4 != 0:
-            print(f"Error: indentation has to be 0,4,8,12,16,20 spaces etc, not {current_indent}")
+        tokenized = user_input.split()
 
-        line_length = len(tokenized)
-        first_word = tokenized[0]
-        command = first_word
-
-        type_of_logic = check_which_node_type(first_word)
-
-        node = None
-
-        if type_of_logic == "command":
-            node = handle_commands(tokenized, first_word) #RETRIEVE NODE FOR COMMANDS (MOVE,TURN ETC)
-            
-        elif type_of_logic == "statement":
-            node = create_statement_node(tokenized, first_word, user_input) #RETRIEVE NODE FOR CONDITIONAL STATEMENTS (IF)
-            
-        elif type_of_logic == "special_command":
-            node = handle_special_command(tokenized, first_word) #RETRIEVE NODE FOR SPECIAL COMMANDS (SET, UPDATE ETC)
-
-        elif type_of_logic == "neither":
-            print("Error: invalid input")
+        if user_input.strip() == "": #ignore blank lines
             continue
+        else:
+            previous_indent = current_indent ## first pass: prev_indent = 0
+            current_indent = 0
 
-        # ======= creating the AST. compares current indentation to previous indentation and acts upon that, appending to the stack only if its a conditional statement, popping elements of the stack
-        indentation_type = checkForIndentation(current_indent, previous_indent)
-        if indentation_type == "dedent":
-            indent_levels_up = (previous_indent - current_indent) // 4 # floor for int
-
-            for _ in range(indent_levels_up):
-                if len(stack) > 0:
-                    stack.pop()
-        
-        if node is not None:
-            if current_indent == 0:
-                program_nodes.append(node)
+            for char in user_input:
+                if char == " ":
+                    current_indent += 1
+                elif char != " ":
+                    break
             
-            if current_indent != 0 and len(stack) > 0:
+            if previous_indent % 4 != 0 or current_indent % 4 != 0:
+                print(f"Error: indentation has to be 0,4,8,12,16,20 spaces etc, not {current_indent}")
+
+            line_length = len(tokenized)
+            first_word = tokenized[0]
+            command = first_word
+
+            type_of_logic = check_which_node_type(first_word)
+
+            node = None
+
+            if type_of_logic == "command":
+                node = handle_commands(tokenized, first_word) #RETRIEVE NODE FOR COMMANDS (MOVE,TURN ETC)
+                
+            elif type_of_logic == "statement":
+                node = create_statement_node(tokenized, first_word, user_input) #RETRIEVE NODE FOR CONDITIONAL STATEMENTS (IF)
+                
+            elif type_of_logic == "special_command":
+                node = handle_special_command(tokenized, first_word) #RETRIEVE NODE FOR SPECIAL COMMANDS (SET, UPDATE ETC)
+
+            elif type_of_logic == "neither":
+                print("Error: invalid input")
+                continue
+
+            # ======= creating the AST. compares current indentation to previous indentation and acts upon that, appending to the stack only if its a conditional statement, popping elements of the stack
+            indentation_type = checkForIndentation(current_indent, previous_indent)
+            if indentation_type == "dedent":
+                indent_levels_up = (previous_indent - current_indent) // 4 # floor for int
+
+                for _ in range(indent_levels_up):
+                    stack.pop()
+            
+            if node is not None:
                 stack[-1].add_children(node)
 
-            if isinstance(node, IfNode):
-                stack.append(node)
-        # ======
+                if isinstance(node, IfNode):
+                    stack.append(node)
+            # ======
