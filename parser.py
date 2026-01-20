@@ -1,5 +1,5 @@
-from nodes import Node, ProgramNode, MoveNode, TurnNode, WaitNode, IfNode, SetNode, UpdateNode
-from nodes import variables
+from nodes import Node, ProgramNode, MoveNode, TurnNode, WaitNode, IfNode, ElseNode, ElseIfNode, SetNode, UpdateNode
+from nodes import variables, is_number, is_variable
 
 # ============================================================================
 # GLOBAL VARIABLES & MAIN DICTIONARIES
@@ -8,6 +8,8 @@ from nodes import variables
 user_lines = {}
 program_node = ProgramNode()
 stack = [program_node]
+current_indent = 0
+previous_indent = 0
 
 statement_nodes = {
     "if": {
@@ -17,10 +19,27 @@ statement_nodes = {
         "expected_variables": 2,
         "expected_s_number_args": 0,
         "expected_expressions": 1
+    },
+
+    "elseif": {
+        "expressions": ["==", "=/=", ">", "<", ">/=", "</="],
+        "logic_statements": ["and", "or"],
+        "expects_variable": True,
+        "expected_variables": 2,
+        "expected_s_number_args": 0,
+        "expected_expressions": 1
+    },
+
+    "else": {
+        "expressions": None,
+        "logic_statements": None,
+        "expects_variable": False,
+        "expected_s_number_args": 0,
+        "expected_expressions": 0
     }
 }
 
-command_nodes = { #dictionary to store valid commnds and subcommands (MOVE forward 10 would be valid here)
+command_nodes = {
     "MOVE": {
         "subcommands": ["forward", "backward", "forwards", "backwards"],
         "optional_subcommands": [],
@@ -48,38 +67,11 @@ special_command_nodes = {
     "SET",
     "UPDATE"
 }
-current_indent = 0
-previous_indent = 0
-
 
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
 
-def is_number(token): ## helper function to check whether tokens are number while handling loat inputs
-    try:
-        float(token)
-        return True
-    except ValueError:
-        return False
-
-def is_variable(token):
-    try:
-        float(token)
-        return False
-    except ValueError:
-        if token in command_nodes or token in statement_nodes:
-            return False
-        # keywords are buried deep in dictionaries
-        for node_dict in (statement_nodes, command_nodes): #node_dict - whole nodes dictionary
-            for key, value in node_dict.items(): #key(useless right now) f.e : MOVE;  |||  value f.e: {"subcommands": [forward,backward]}
-                if isinstance(value, dict): #extra precaution to only check dictionaries
-                    for list_value in value.values(): #1st list value f.e: [forward,backward] (its  a VALUE of well, value (the dictionary))
-                        if isinstance(list_value, list) and token in list_value: #is list_value actually a list? [forward,backward] and is the token in it?
-                            return False #if it is, the token is a keyword
-    
-    return True
-            
 def check_list_lengths(expected_args, current_args):
     if len(current_args) != expected_args:
         return False
@@ -87,7 +79,8 @@ def check_list_lengths(expected_args, current_args):
         return True
 
 
-def check_which_node_type(command): # helper function to determine node type (command, statement, or other (placeholder))
+def check_which_node_type(command):
+    """Determine node type (command, statement, special_command, or neither)"""
     if command.isupper() and command in command_nodes:
         return "command"
     elif command.isupper() and command in special_command_nodes:
@@ -109,7 +102,7 @@ def checkForIndentation(current_indent, previous_indent):
 def validate_commands(current_subcommands, current_valid_subcommands, expected_subcommands, current_number_args, expected_number_args, current_optional_args, current_valid_optional_args, expected_optional_args, command, tokenized, type_of_logic):
     if type_of_logic == "command":
 
-        for token in tokenized[1:]: # loop through non-command (0 index) tokens.categorise and sort them into lists
+        for token in tokenized[1:]:
             if token in current_valid_subcommands:
                 current_subcommands.append(token)
             elif is_number(token):
@@ -121,11 +114,13 @@ def validate_commands(current_subcommands, current_valid_subcommands, expected_s
                 return False
                 
         print(current_subcommands); print(current_number_args); print(current_optional_args)
-        ## to line 116: check whether user has inputted correct amount of subcommands, number arguments, and optional subcommands. f.e MOVE requires there to be NO optional subcommands ('MOVE forward 10')
-        expected_number_args = command_nodes[command]["expected_number_args"]; expected_subcommands = command_nodes[command]["expected_subcommands"]; expected_optional_args = command_nodes[command]["expected_optional_subcommands"]
+        
+        expected_number_args = command_nodes[command]["expected_number_args"]
+        expected_subcommands = command_nodes[command]["expected_subcommands"]
+        expected_optional_args = command_nodes[command]["expected_optional_subcommands"]
                 
         current_lists = [current_subcommands, current_number_args, current_optional_args]
-        expected_lists = [expected_number_args, expected_subcommands, expected_optional_args]
+        expected_lists = [expected_subcommands, expected_number_args, expected_optional_args]
 
         for index in range(len(current_lists)):
             if check_list_lengths(expected_lists[index], current_lists[index]) != True: 
@@ -136,13 +131,14 @@ def validate_commands(current_subcommands, current_valid_subcommands, expected_s
     
     else:
         print("thats not a command")
-        return    
+        return
 
 # ============================================================================
 # COMMAND PARSING
 # ============================================================================
 
-def handle_commands(tokenized, command): ##  main function for if user inputs and COMMAND (e.g MOVE)
+def handle_commands(tokenized, command):
+    """Main function for handling COMMAND inputs (e.g MOVE)"""
     
     current_subcommands = []
     current_number_args = []
@@ -181,7 +177,8 @@ def handle_commands(tokenized, command): ##  main function for if user inputs an
 # SPECIAL COMMAND PARSING
 # ============================================================================
 
-def handle_special_command(tokenized, command): # special commands: SET / UPDATE
+def handle_special_command(tokenized, command):
+    """Handle special commands: SET / UPDATE"""
     
     if "as" not in tokenized:
         print("Error, SET or UPDATE commands must have 'as' (e.g SET distance as 5")
@@ -190,7 +187,7 @@ def handle_special_command(tokenized, command): # special commands: SET / UPDATE
     as_index = tokenized.index("as")
     left = tokenized[1:as_index]
     right = tokenized[as_index + 1:] 
-    ## SET x as 5 ; UPDATE x as 5
+    
     if len(left) != 1 or is_variable(left[0]) == False:
         print("Error. left args count must equal to 1, and must be a new variable name.")
         return
@@ -260,7 +257,8 @@ def token_sorter(tokenized, first_word):
     return tokens_sorted
 
 
-def condition_builder(tokens_sorted, tokenized, first_word): # returns 'condition' which is a dict which will get used in evaluate()
+def condition_builder(tokens_sorted, tokenized, first_word):
+    """Returns a condition dict to be used in evaluate()"""
     condition = ""
 
     node_dict = {}
@@ -291,18 +289,27 @@ def condition_builder(tokens_sorted, tokenized, first_word): # returns 'conditio
         node_dict.update({
             "type": "logical",
             "op": logical_op,
-            "left": condition_builder(left_tokens_sorted, left_tokens, first_word), ## dict = {"type", "logical", "op": and, "left": {x > 5}, "right": {x < 10}}
-            "right": condition_builder(right_tokens_sorted, right_tokens, first_word)#                                               ^^^^^              ^^^^^^^ run token builder on these again to get type, op, left, right. 
+            "left": condition_builder(left_tokens_sorted, left_tokens, first_word),
+            "right": condition_builder(right_tokens_sorted, right_tokens, first_word)
         })
         
     return node_dict
 
 
 def create_statement_node(tokenized, first_word, user_input):
-    tokens_sorted = token_sorter(tokenized[1:], first_word)
 
-    condition = condition_builder(tokens_sorted, tokenized[1:], first_word)
-    
+    try:
+        then_index = tokenized.index("THEN")
+    except ValueError:
+        print("Error. missing THEN")
+        return
+
+    condition_tokens = tokenized[1:then_index]
+
+# 3. Parse condition normally
+    tokens_sorted = token_sorter(condition_tokens, first_word)
+    condition = condition_builder(tokens_sorted, condition_tokens, first_word)
+
     if first_word == "if":
         node = IfNode(condition)
     
@@ -319,10 +326,10 @@ def run_program():
         
         tokenized = user_input.split()
 
-        if user_input.strip() == "": #ignore blank lines
+        if user_input.strip() == "":
             continue
         else:
-            previous_indent = current_indent ## first pass: prev_indent = 0
+            previous_indent = current_indent
             current_indent = 0
 
             for char in user_input:
@@ -343,22 +350,21 @@ def run_program():
             node = None
 
             if type_of_logic == "command":
-                node = handle_commands(tokenized, first_word) #RETRIEVE NODE FOR COMMANDS (MOVE,TURN ETC)
+                node = handle_commands(tokenized, first_word)
                 
             elif type_of_logic == "statement":
-                node = create_statement_node(tokenized, first_word, user_input) #RETRIEVE NODE FOR CONDITIONAL STATEMENTS (IF)
+                node = create_statement_node(tokenized, first_word, user_input)
                 
             elif type_of_logic == "special_command":
-                node = handle_special_command(tokenized, first_word) #RETRIEVE NODE FOR SPECIAL COMMANDS (SET, UPDATE ETC)
+                node = handle_special_command(tokenized, first_word)
 
             elif type_of_logic == "neither":
                 print("Error: invalid input")
                 continue
 
-            # ======= creating the AST. compares current indentation to previous indentation and acts upon that, appending to the stack only if its a conditional statement, popping elements of the stack
             indentation_type = checkForIndentation(current_indent, previous_indent)
             if indentation_type == "dedent":
-                indent_levels_up = (previous_indent - current_indent) // 4 # floor for int
+                indent_levels_up = (previous_indent - current_indent) // 4
 
                 for _ in range(indent_levels_up):
                     stack.pop()
@@ -368,4 +374,20 @@ def run_program():
 
                 if isinstance(node, IfNode):
                     stack.append(node)
-            # ======
+
+                if isinstance(node, ElseIfNode):
+                    stack.pop()
+                    parent_if = stack[-1]
+                    parent_if.add_children(node)
+                elif isinstance(node, ElseNode):
+                    stack.pop()
+                    parent_if = stack[-1]
+                    parent_if.add_children(node)
+
+
+
+
+                        
+
+
+                   

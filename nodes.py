@@ -1,4 +1,35 @@
-variables = []
+
+# ============================================================================
+# GLOBAL VARIABLES
+# ============================================================================
+
+variables = {}
+
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
+
+def is_number(token):
+    """Helper function to check whether tokens are numbers while handling float inputs"""
+    try:
+        float(token)
+        return True
+    except ValueError:
+        return False
+
+
+def is_variable(token):
+    """Check if token is a variable name (not a keyword or number)"""
+    try:
+        float(token)
+        return False
+    except ValueError:
+        # Note: keywords check happens at parser level
+        return True
+
+# ============================================================================
+# NODE CLASSES
+# ============================================================================
 
 class Node:
     def __init__(self, node_type, args=None):
@@ -14,7 +45,7 @@ class Node:
 
 class ProgramNode(Node):
     def __init__(self):
-        super().init("PROGRAM")
+        super().__init__("PROGRAM")
 
     def execute(self):
         for child in self.children:
@@ -78,6 +109,27 @@ class IfNode(Node):
         self.condition = condition
 
     def execute(self):
+        from main import evaluate
         if evaluate(self.condition) == True:
             for child in self.children:
                 child.execute()
+
+class ElseIfNode(Node):
+    def __init__(self, condition):
+        super().__init__("ELSEIF")
+        self.condition = condition
+    
+    def execute(self):
+        from main import evaluate
+        if evaluate(self.condition) == True:
+            for child in self.children:
+                child.execute()
+
+class ElseNode(Node):
+    def __init__(self, condition):
+        super().__init__("ELSE")
+        
+    def execute(self):
+        for child in self.children:
+            child.execute
+        

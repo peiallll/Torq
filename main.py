@@ -1,6 +1,10 @@
 import operator as o
 from parser import run_program
-from nodes import variables
+from nodes import variables, is_variable
+
+# ============================================================================
+# GLOBAL VARIABLES & OPERATORS
+# ============================================================================
 
 ops = {
     ">": o.gt,
@@ -11,7 +15,12 @@ ops = {
     "</=": o.le
 }
 
+# ============================================================================
+# EVALUATION FUNCTIONS
+# ============================================================================
+
 def evaluate(condition):
+    """Evaluate a condition (single or logical) and return boolean result"""
     if condition["type"] == "single": # f.e MOVE forward 10
         left = condition["left"]
         op = condition["op"]
@@ -38,3 +47,5 @@ def evaluate(condition):
             return True
         elif boolVal == False:
             return False
+        
+    
