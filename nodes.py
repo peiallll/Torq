@@ -107,6 +107,8 @@ class IfNode(Node):
     def __init__(self, condition):
         super().__init__("IF")
         self.condition = condition
+        self.elifs = []
+        self.else_node = None
 
     def execute(self):
         from main import evaluate
@@ -131,5 +133,5 @@ class ElseNode(Node):
         
     def execute(self):
         for child in self.children:
-            child.execute
+            child.execute()
         

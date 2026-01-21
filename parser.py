@@ -378,11 +378,13 @@ def run_program():
                 if isinstance(node, ElseIfNode):
                     stack.pop()
                     parent_if = stack[-1]
-                    parent_if.add_children(node)
+                    parent_if.elifs.append(node)
+                    stack.append(node)
                 elif isinstance(node, ElseNode):
                     stack.pop()
                     parent_if = stack[-1]
-                    parent_if.add_children(node)
+                    parent_if.else_node = node
+                    stack.append(node)
 
 
 
