@@ -134,4 +134,3 @@ class ElseNode(Node):
     def execute(self):
         for child in self.children:
             child.execute()
-        

@@ -320,24 +320,30 @@ def create_statement_node(tokenized, first_word, user_input):
 # MAIN PROGRAM LOOP
 # ============================================================================
 
-def run_program():
-    while True:
-        user_input = input("> ")
-        
-        tokenized = user_input.split()
+class Interpreter:
+    def __init__(self):
+        self.previous_indent = 0
+        self.current_indent = 0
+        self.stack = [program_node]
 
-        if user_input.strip() == "":
-            continue
-        else:
-            previous_indent = current_indent
-            current_indent = 0
+    def run(self):
+        while True:
+            user_input = input("> ")
+            
+            tokenized = user_input.split()
+
+            if user_input.strip() == "":
+                continue
+
+            self.previous_indent = self.current_indent
+            self.current_indent = 0
 
             for char in user_input:
                 if char == " ":
                     current_indent += 1
                 elif char != " ":
                     break
-            
+                
             if previous_indent % 4 != 0 or current_indent % 4 != 0:
                 print(f"Error: indentation has to be 0,4,8,12,16,20 spaces etc, not {current_indent}")
 
@@ -351,10 +357,10 @@ def run_program():
 
             if type_of_logic == "command":
                 node = handle_commands(tokenized, first_word)
-                
+                    
             elif type_of_logic == "statement":
                 node = create_statement_node(tokenized, first_word, user_input)
-                
+                    
             elif type_of_logic == "special_command":
                 node = handle_special_command(tokenized, first_word)
 
@@ -368,28 +374,21 @@ def run_program():
 
                 for _ in range(indent_levels_up):
                     stack.pop()
-            
+                
             if node is not None:
                 stack[-1].add_children(node)
 
                 if isinstance(node, IfNode):
                     stack.append(node)
 
-                if isinstance(node, ElseIfNode):
+                elif isinstance(node, ElseIfNode, ElseNode):
                     stack.pop()
                     parent_if = stack[-1]
-                    parent_if.elifs.append(node)
+
+                    if isinstance(node, ElseIfNode):
+                        parent_if.elifs.append(node)
+     
+                    else:
+                        parent_if.else_node = node
+
                     stack.append(node)
-                elif isinstance(node, ElseNode):
-                    stack.pop()
-                    parent_if = stack[-1]
-                    parent_if.else_node = node
-                    stack.append(node)
-
-
-
-
-                        
-
-
-                   

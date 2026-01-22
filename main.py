@@ -1,5 +1,5 @@
 import operator as o
-from parser import run_program
+from parser import Interpreter
 from nodes import variables, is_variable
 
 # ============================================================================
@@ -48,4 +48,10 @@ def evaluate(condition):
         elif boolVal == False:
             return False
         
-    
+# ============================================================================
+# RUN IT
+# ============================================================================
+
+if __name__ == "__main__":
+    interpreter = Interpreter()
+    interpreter.run()
