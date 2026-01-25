@@ -16,7 +16,7 @@ ops = {
 }
 
 # ============================================================================
-# EVALUATION FUNCTIONS
+# EVALUATE FUNCTION
 # ============================================================================
 
 def evaluate(condition):
@@ -40,18 +40,35 @@ def evaluate(condition):
             else:
                 print(f"Error. {right_value} not in defined variables list. Define it using the SET command first.")
         else:
-            right_value = int(right_value)
+            right_value = float(right_value)
 
-        boolVal = ops[op](left_value, right_value) # if x (15) > 10: True
-        if boolVal == True:
+        bool_val = ops[op](left_value, right_value) # if x (15) > 10: True
+        if bool_val == True:
             return True
-        elif boolVal == False:
+        elif bool_val == False:
             return False
         
+    elif condition["type"] == "logical":
+        left = condition["left"]
+        op = condition["op"]
+        right = condition["right"]
+
+        bool_left = evaluate(left)
+        bool_right = evaluate(right)
+
+        if op == "and":
+            if bool_left == True and bool_right == True:
+                return True
+        elif op == "or":
+            if bool_left == True or bool_right == True:
+                return True
+            
+        return False
 # ============================================================================
 # RUN IT
 # ============================================================================
 
 if __name__ == "__main__":
+    print("type 'help' for a list of commands.")
     interpreter = Interpreter()
     interpreter.run()

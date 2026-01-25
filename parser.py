@@ -7,7 +7,6 @@ from nodes import variables, is_number, is_variable
 
 user_lines = {}
 program_node = ProgramNode()
-stack = [program_node]
 current_indent = 0
 previous_indent = 0
 
@@ -137,7 +136,7 @@ def validate_commands(current_subcommands, current_valid_subcommands, expected_s
 # COMMAND PARSING
 # ============================================================================
 
-def handle_commands(tokenized, command):
+def handle_commands(tokenized, command, type_of_logic):
     """Main function for handling COMMAND inputs (e.g MOVE)"""
     
     current_subcommands = []
@@ -188,6 +187,9 @@ def handle_special_command(tokenized, command):
     left = tokenized[1:as_index]
     right = tokenized[as_index + 1:] 
     
+    if is_number(right[0]):
+        right[0] = float(right[0])
+
     if len(left) != 1 or is_variable(left[0]) == False:
         print("Error. left args count must equal to 1, and must be a new variable name.")
         return
@@ -201,6 +203,9 @@ def handle_special_command(tokenized, command):
             if right[0] not in variables:
                 print(f"Error. {right[0]} is not an existing variable. Define that using SET first.")
                 return
+            
+        if left[0] in variables:
+            print(f"Error. {left[0]} already exists and so cannot be SET. update variables using UPDATE command.")
         
         node = SetNode(left[0], right[0])
         
@@ -243,7 +248,7 @@ def token_sorter(tokenized, first_word):
             current_variables.append(token)
 
     for logic_statement in current_logic_statements:
-        if logic_statement not in statement_nodes["if"]["expressions"]:
+        if logic_statement not in statement_nodes["if"]["logic_statements"]:
             print("Error. Expression not found.")
             return
 
@@ -296,7 +301,8 @@ def condition_builder(tokens_sorted, tokenized, first_word):
     return node_dict
 
 
-def create_statement_node(tokenized, first_word, user_input):
+def create_statement_node(tokenized, first_word):
+    print("DEBUG: entering create_statement_node")
 
     try:
         then_index = tokenized.index("THEN")
@@ -312,8 +318,14 @@ def create_statement_node(tokenized, first_word, user_input):
 
     if first_word == "if":
         node = IfNode(condition)
-    
-    return node
+        return node
+    elif first_word == "elseif":
+        node = ElseIfNode(condition)
+        return node
+    elif first_word == "else":
+        node = ElseNode()
+        return node
+
 
 
 # ============================================================================
@@ -340,26 +352,40 @@ class Interpreter:
 
             for char in user_input:
                 if char == " ":
-                    current_indent += 1
+                    self.current_indent += 1
                 elif char != " ":
                     break
                 
-            if previous_indent % 4 != 0 or current_indent % 4 != 0:
-                print(f"Error: indentation has to be 0,4,8,12,16,20 spaces etc, not {current_indent}")
+            if self.previous_indent % 4 != 0 or self.current_indent % 4 != 0:
+                print(f"Error: indentation has to be 0,4,8,12,16,20 spaces etc, not {self.current_indent}")
 
-            line_length = len(tokenized)
             first_word = tokenized[0]
-            command = first_word
+
+            if first_word == "help":
+                print("'MOVE': move forward a certain (cm) e.g MOVE forward 10\n 'TURN' turn a certain amount (degrees) e.g TURN left 90\n 'SET' create variables e.g SET distance as 10 \n")
+                continue
+
+            if first_word == "RECALL":
+                if len(variables) == 0:
+                    print("You currently have no variables! define them using SET first, and then type 'RUN', and finally 'RECALL'")
+                else:
+                    print(f"Variables: {variables}")
+                continue
+
+            if first_word == "RUN":
+                program_node.execute()
+                program_node.children = []
+                continue
 
             type_of_logic = check_which_node_type(first_word)
 
             node = None
 
             if type_of_logic == "command":
-                node = handle_commands(tokenized, first_word)
+                node = handle_commands(tokenized, first_word, type_of_logic)
                     
             elif type_of_logic == "statement":
-                node = create_statement_node(tokenized, first_word, user_input)
+                node = create_statement_node(tokenized, first_word)
                     
             elif type_of_logic == "special_command":
                 node = handle_special_command(tokenized, first_word)
@@ -368,22 +394,24 @@ class Interpreter:
                 print("Error: invalid input")
                 continue
 
-            indentation_type = checkForIndentation(current_indent, previous_indent)
+            indentation_type = checkForIndentation(self.current_indent, self.previous_indent)
+
             if indentation_type == "dedent":
-                indent_levels_up = (previous_indent - current_indent) // 4
+                indent_levels_up = (self.previous_indent - self.current_indent) // 4
 
                 for _ in range(indent_levels_up):
-                    stack.pop()
+                    self.stack.pop()
                 
+
             if node is not None:
-                stack[-1].add_children(node)
+                self.stack[-1].add_children(node)
 
                 if isinstance(node, IfNode):
-                    stack.append(node)
+                    self.stack.append(node)
 
-                elif isinstance(node, ElseIfNode, ElseNode):
-                    stack.pop()
-                    parent_if = stack[-1]
+                elif isinstance(node, (ElseIfNode, ElseNode)):
+                    self.stack.pop()
+                    parent_if = self.stack[-1]
 
                     if isinstance(node, ElseIfNode):
                         parent_if.elifs.append(node)
@@ -391,4 +419,4 @@ class Interpreter:
                     else:
                         parent_if.else_node = node
 
-                    stack.append(node)
+                    self.stack.append(node)

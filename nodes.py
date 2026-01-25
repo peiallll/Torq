@@ -58,7 +58,7 @@ class MoveNode(Node):
     def execute(self):
         direction = self.args["direction"]
         distance = self.args["distance"]
-        print(f"Moving {direction} for {distance}")
+        print(f"Moving {direction} for {distance}...")
 
 
 class TurnNode(Node):
@@ -68,6 +68,7 @@ class TurnNode(Node):
     def execute(self):
         direction = self.args["direction"]
         angle = self.args["angle"]
+        print(f"Turning {angle} degrees {direction}...")
 
 
 class WaitNode(Node):
@@ -76,6 +77,7 @@ class WaitNode(Node):
 
     def execute(self):
         time = self.args["time"]
+        print(f"Waiting for {time} seconds...")
             
 class SetNode(Node):
     def __init__(self, user_variable, value):
@@ -85,10 +87,14 @@ class SetNode(Node):
         variable_name = self.args["user_variable"]
         value = self.args["value"]
 
+        if isinstance(value, str) and is_number(value):
+            value = float(value)
+
         if isinstance(value, (int, float)):
             variables[variable_name] = value
         else:
             variables[variable_name] = variables[value]
+        print(f"setting {variable_name} as {value}...")
 
 class UpdateNode(Node):
     def __init__(self, user_variable, value):
@@ -102,6 +108,7 @@ class UpdateNode(Node):
             variables[variable_name] = value
         else:
             variables[variable_name] = variables[value]
+        print(f"updating {variable_name} to {value}...")
 
 class IfNode(Node):
     def __init__(self, condition):
@@ -115,6 +122,14 @@ class IfNode(Node):
         if evaluate(self.condition) == True:
             for child in self.children:
                 child.execute()
+        else:
+            for elseif_node in self.elifs:
+                if evaluate(elseif_node.condition):
+                    elseif_node.execute()
+                    return
+                
+            if self.else_node:
+                self.else_node.execute()
 
 class ElseIfNode(Node):
     def __init__(self, condition):
@@ -128,7 +143,7 @@ class ElseIfNode(Node):
                 child.execute()
 
 class ElseNode(Node):
-    def __init__(self, condition):
+    def __init__(self):
         super().__init__("ELSE")
         
     def execute(self):
