@@ -69,6 +69,6 @@ def evaluate(condition):
 # ============================================================================
 
 if __name__ == "__main__":
-    print("type 'help' for a list of commands.")
+    print("\033[32mtype 'help' for a list of commands.\033[0m")
     interpreter = Interpreter()
     interpreter.run()

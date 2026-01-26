@@ -167,8 +167,6 @@ def handle_commands(tokenized, command, type_of_logic):
         node = TurnNode(current_subcommands[0], current_number_args[0])
     elif command == "WAIT":
         node = WaitNode(current_number_args[0])
-    elif command == "SET":
-        node = SetNode()
     
     return node
 
@@ -245,7 +243,8 @@ def token_sorter(tokenized, first_word):
             float(token)
             s_current_number_args.append(token)
         except ValueError:
-            current_variables.append(token)
+            if token not in statement_nodes["if"]["expressions"]:
+                current_variables.append(token)
 
     for logic_statement in current_logic_statements:
         if logic_statement not in statement_nodes["if"]["logic_statements"]:
@@ -263,7 +262,6 @@ def token_sorter(tokenized, first_word):
 
 
 def condition_builder(tokens_sorted, tokenized, first_word):
-    """Returns a condition dict to be used in evaluate()"""
     condition = ""
 
     node_dict = {}
@@ -274,6 +272,9 @@ def condition_builder(tokens_sorted, tokenized, first_word):
         condition = "single"
 
     if condition == "single":
+        if len(tokens_sorted["variables"]) != 1 or len(tokens_sorted["expressions"]) != 1 or len(tokens_sorted["numbers"]) != 1:
+            print("Error. malformed condition")
+
         node_dict.update({
             "type": "single",
             "left": tokens_sorted["variables"][0],
@@ -302,7 +303,6 @@ def condition_builder(tokens_sorted, tokenized, first_word):
 
 
 def create_statement_node(tokenized, first_word):
-    print("DEBUG: entering create_statement_node")
 
     try:
         then_index = tokenized.index("THEN")
@@ -312,8 +312,13 @@ def create_statement_node(tokenized, first_word):
 
     condition_tokens = tokenized[1:then_index]
 
-# 3. Parse condition normally
     tokens_sorted = token_sorter(condition_tokens, first_word)
+
+    for var in tokens_sorted["variables"]:
+        if var not in variables:
+            print(f"Error. variable {var} is not a defined variable. define it using 'SET' first.")
+            return
+
     condition = condition_builder(tokens_sorted, condition_tokens, first_word)
 
     if first_word == "if":
@@ -337,10 +342,11 @@ class Interpreter:
         self.previous_indent = 0
         self.current_indent = 0
         self.stack = [program_node]
+        self.expects_indentation = False
 
     def run(self):
         while True:
-            user_input = input("> ")
+            user_input = input("\033[34m> \033[0m")     
             
             tokenized = user_input.split()
 
@@ -359,7 +365,19 @@ class Interpreter:
             if self.previous_indent % 4 != 0 or self.current_indent % 4 != 0:
                 print(f"Error: indentation has to be 0,4,8,12,16,20 spaces etc, not {self.current_indent}")
 
+            if self.expects_indentation == True:
+                if first_word not in ("elseif", "else"):
+                    if self.current_indent <= self.previous_indent:
+                        print(f"Error. you used an if/elseif/else conditional statmenet, and so the next line must have indentation")
+
             first_word = tokenized[0]
+
+            if first_word == "CLEAR":
+                print("Clearing the program and variables...")
+                variables.clear()
+                program_node.children = []
+                self.stack = [program_node]
+                continue
 
             if first_word == "help":
                 print("'MOVE': move forward a certain (cm) e.g MOVE forward 10\n 'TURN' turn a certain amount (degrees) e.g TURN left 90\n 'SET' create variables e.g SET distance as 10 \n")
@@ -375,6 +393,7 @@ class Interpreter:
             if first_word == "RUN":
                 program_node.execute()
                 program_node.children = []
+                self.stack = [program_node]
                 continue
 
             type_of_logic = check_which_node_type(first_word)
@@ -402,6 +421,10 @@ class Interpreter:
                 for _ in range(indent_levels_up):
                     self.stack.pop()
                 
+            self.expects_indentation = False
+
+            if isinstance(node, (IfNode, ElseIfNode, ElseNode)):
+                self.expected_indentation = True
 
             if node is not None:
                 self.stack[-1].add_children(node)
@@ -415,7 +438,6 @@ class Interpreter:
 
                     if isinstance(node, ElseIfNode):
                         parent_if.elifs.append(node)
-     
                     else:
                         parent_if.else_node = node
 
