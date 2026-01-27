@@ -79,7 +79,6 @@ def check_list_lengths(expected_args, current_args):
 
 
 def check_which_node_type(command):
-    """Determine node type (command, statement, special_command, or neither)"""
     if command.isupper() and command in command_nodes:
         return "command"
     elif command.isupper() and command in special_command_nodes:
@@ -98,7 +97,7 @@ def checkForIndentation(current_indent, previous_indent):
     elif current_indent < previous_indent:
         return "dedent"
 
-def validate_commands(current_subcommands, current_valid_subcommands, expected_subcommands, current_number_args, expected_number_args, current_optional_args, current_valid_optional_args, expected_optional_args, command, tokenized, type_of_logic):
+def parse_and_validate_commands(current_subcommands, current_valid_subcommands, expected_subcommands, current_number_args, expected_number_args, current_optional_args, current_valid_optional_args, expected_optional_args, command, tokenized, type_of_logic):
     if type_of_logic == "command":
 
         for token in tokenized[1:]:
@@ -110,14 +109,11 @@ def validate_commands(current_subcommands, current_valid_subcommands, expected_s
                 current_optional_args.append(token)
             else:
                 print("Error: couldnt find at least one of those arguments.")
+                current_subcommands.clear()
+                current_number_args.clear()
+                current_optional_args.clear()
                 return False
-                
-        print(current_subcommands); print(current_number_args); print(current_optional_args)
-        
-        expected_number_args = command_nodes[command]["expected_number_args"]
-        expected_subcommands = command_nodes[command]["expected_subcommands"]
-        expected_optional_args = command_nodes[command]["expected_optional_subcommands"]
-                
+                                
         current_lists = [current_subcommands, current_number_args, current_optional_args]
         expected_lists = [expected_subcommands, expected_number_args, expected_optional_args]
 
@@ -155,11 +151,10 @@ def handle_commands(tokenized, command, type_of_logic):
         print("Error: invalid command")
         return
             
-    validated = validate_commands(current_subcommands, current_valid_subcommands, expected_subcommands, current_number_args, expected_number_args, current_optional_args, current_valid_optional_args, expected_optional_args, command, tokenized, type_of_logic)
+    validated = parse_and_validate_commands(current_subcommands, current_valid_subcommands, expected_subcommands, current_number_args, expected_number_args, current_optional_args, current_valid_optional_args, expected_optional_args, command, tokenized, type_of_logic)
     
-    if validated == False:
-        print("ERROR")
-        return
+    if not validated:
+        return None
     
     if command == "MOVE":
         node = MoveNode(current_subcommands[0], current_number_args[0])
@@ -241,9 +236,9 @@ def token_sorter(tokenized, first_word):
 
         try:
             float(token)
-            s_current_number_args.append(token)
+            s_current_number_args.append(float(token))
         except ValueError:
-            if token not in statement_nodes["if"]["expressions"]:
+            if token not in statement_nodes[first_word]["expressions"]:
                 current_variables.append(token)
 
     for logic_statement in current_logic_statements:
@@ -304,11 +299,12 @@ def condition_builder(tokens_sorted, tokenized, first_word):
 
 def create_statement_node(tokenized, first_word):
 
-    try:
-        then_index = tokenized.index("THEN")
-    except ValueError:
-        print("Error. missing THEN")
-        return
+    if first_word != "else":
+        try:
+            then_index = tokenized.index("THEN")
+        except ValueError:
+            print("Error. missing THEN")
+            return
 
     condition_tokens = tokenized[1:then_index]
 
@@ -316,8 +312,9 @@ def create_statement_node(tokenized, first_word):
 
     for var in tokens_sorted["variables"]:
         if var not in variables:
-            print(f"Error. variable {var} is not a defined variable. define it using 'SET' first.")
-            return
+            if var not in statement_nodes["if"]["logic_statements"]:
+                print(f"Error. variable {var} is not a defined variable. define it using 'SET' first.")
+                return
 
     condition = condition_builder(tokens_sorted, condition_tokens, first_word)
 
@@ -356,6 +353,8 @@ class Interpreter:
             self.previous_indent = self.current_indent
             self.current_indent = 0
 
+            first_word = tokenized[0]
+
             for char in user_input:
                 if char == " ":
                     self.current_indent += 1
@@ -368,9 +367,8 @@ class Interpreter:
             if self.expects_indentation == True:
                 if first_word not in ("elseif", "else"):
                     if self.current_indent <= self.previous_indent:
-                        print(f"Error. you used an if/elseif/else conditional statmenet, and so the next line must have indentation")
+                        raise IndentationError("Error. you used an if/elseif/else conditional statmenet, and so the next line must have indentation")
 
-            first_word = tokenized[0]
 
             if first_word == "CLEAR":
                 print("Clearing the program and variables...")
@@ -424,7 +422,7 @@ class Interpreter:
             self.expects_indentation = False
 
             if isinstance(node, (IfNode, ElseIfNode, ElseNode)):
-                self.expected_indentation = True
+                self.expects_indentation = True
 
             if node is not None:
                 self.stack[-1].add_children(node)
