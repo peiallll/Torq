@@ -20,7 +20,6 @@ ops = {
 # ============================================================================
 
 def evaluate(condition):
-    """Evaluate a condition (single or logical) and return boolean result"""
     if condition["type"] == "single": # f.e MOVE forward 10
         left = condition["left"]
         op = condition["op"]
@@ -64,6 +63,7 @@ def evaluate(condition):
                 return True
             
         return False
+        
 # ============================================================================
 # RUN IT
 # ============================================================================

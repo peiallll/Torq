@@ -1,4 +1,4 @@
-from nodes import Node, ProgramNode, MoveNode, TurnNode, WaitNode, IfNode, ElseNode, ElseIfNode, SetNode, UpdateNode
+from nodes import Node, ProgramNode, MoveNode, TurnNode, WaitNode, IfNode, ElseNode, ElseIfNode, SetNode, UpdateNode, RepeatNode
 from nodes import variables, is_number, is_variable
 
 # ============================================================================
@@ -60,6 +60,12 @@ command_nodes = {
         "optional_subcommands": [],
         "expected_optional_subcommands": 0
     },
+    "REPEAT": {
+        "subcommands": [],
+        "expected_number_args": 0,
+        "optional_subcommands": [],
+        "expected_optional_subcommands": 0
+    }
 }
 
 special_command_nodes = {
@@ -162,7 +168,8 @@ def handle_commands(tokenized, command, type_of_logic):
         node = TurnNode(current_subcommands[0], current_number_args[0])
     elif command == "WAIT":
         node = WaitNode(current_number_args[0])
-    
+    elif command == "REPEAT":
+        node = RepeatNode(current_number_args[0])
     return node
 
 # ============================================================================
@@ -411,32 +418,46 @@ class Interpreter:
                 print("Error: invalid input")
                 continue
 
-            indentation_type = checkForIndentation(self.current_indent, self.previous_indent)
+            if not isinstance(node, (IfNode, ElseIfNode)):
+                indentation_type = checkForIndentation(self.current_indent, self.previous_indent)
 
-            if indentation_type == "dedent":
-                indent_levels_up = (self.previous_indent - self.current_indent) // 4
+                if indentation_type == "dedent":
+                    indent_levels_up = (self.previous_indent - self.current_indent) // 4
 
-                for _ in range(indent_levels_up):
-                    self.stack.pop()
-                
+                    for _ in range(indent_levels_up):
+                        self.stack.pop()
+                    
             self.expects_indentation = False
 
-            if isinstance(node, (IfNode, ElseIfNode, ElseNode)):
+            if node is None:
+                print("Error")
+                continue
+
+            if isinstance(node, (ElseIfNode, ElseNode)):
                 self.expects_indentation = True
 
-            if node is not None:
-                self.stack[-1].add_children(node)
-
-                if isinstance(node, IfNode):
-                    self.stack.append(node)
-
-                elif isinstance(node, (ElseIfNode, ElseNode)):
+            
+    
+                while len(self.stack) > 0 and not isinstance(self.stack[-1], IfNode):
                     self.stack.pop()
-                    parent_if = self.stack[-1]
 
-                    if isinstance(node, ElseIfNode):
-                        parent_if.elifs.append(node)
-                    else:
-                        parent_if.else_node = node
-
+                if len(self.stack) == 0 or not isinstance(self.stack[-1], IfNode):
+                    print("Error: elif/else must follow an if statement")
+                    continue
+        
+                parent_if = self.stack[-1]
+                if isinstance(node, ElseIfNode):
+                    parent_if.elifs.append(node)
                     self.stack.append(node)
+                else:
+                    parent_if.else_node = node
+                    self.stack.append(node)
+    
+            elif isinstance(node, (IfNode, RepeatNode)):
+                self.stack[-1].add_children(node)
+                self.stack.append(node)
+
+            else:
+                # Regular node - add as child
+                self.stack[-1].add_children(node)
+        

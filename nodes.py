@@ -1,4 +1,3 @@
-
 # ============================================================================
 # GLOBAL VARIABLES
 # ============================================================================
@@ -24,7 +23,6 @@ def is_variable(token):
         float(token)
         return False
     except ValueError:
-        # Note: keywords check happens at parser level
         return True
 
 # ============================================================================
@@ -149,3 +147,13 @@ class ElseNode(Node):
     def execute(self):
         for child in self.children:
             child.execute()
+
+class RepeatNode(Node):
+    def __init__(self, iterations):
+        super().__init__("REPEAT", args={"iterations": iterations})
+
+    def execute(self):
+        iterations = self.args["iterations"]
+        for _ in range(iterations):
+            for child in self.children:
+                child.execute()
