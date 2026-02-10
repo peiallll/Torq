@@ -62,7 +62,8 @@ command_nodes = {
     },
     "REPEAT": {
         "subcommands": [],
-        "expected_number_args": 0,
+        "expected_subcommands": 0,
+        "expected_number_args": 1,
         "optional_subcommands": [],
         "expected_optional_subcommands": 0
     }
@@ -306,7 +307,10 @@ def condition_builder(tokens_sorted, tokenized, first_word):
 
 def create_statement_node(tokenized, first_word):
 
-    if first_word != "else":
+    if first_word == "else":
+        return ElseNode()
+
+    else:
         try:
             then_index = tokenized.index("THEN")
         except ValueError:
@@ -418,7 +422,7 @@ class Interpreter:
                 print("Error: invalid input")
                 continue
 
-            if not isinstance(node, (IfNode, ElseIfNode)):
+            if not isinstance(node, (IfNode, ElseIfNode, ElseNode)):
                 indentation_type = checkForIndentation(self.current_indent, self.previous_indent)
 
                 if indentation_type == "dedent":
@@ -454,6 +458,7 @@ class Interpreter:
                     self.stack.append(node)
     
             elif isinstance(node, (IfNode, RepeatNode)):
+                self.expects_indentation = True
                 self.stack[-1].add_children(node)
                 self.stack.append(node)
 

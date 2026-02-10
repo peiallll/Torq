@@ -153,7 +153,7 @@ class RepeatNode(Node):
         super().__init__("REPEAT", args={"iterations": iterations})
 
     def execute(self):
-        iterations = self.args["iterations"]
+        iterations = int(self.args["iterations"])
         for _ in range(iterations):
             for child in self.children:
                 child.execute()
