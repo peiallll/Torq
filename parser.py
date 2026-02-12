@@ -389,7 +389,7 @@ class Interpreter:
                 continue
 
             if first_word == "help":
-                print("'MOVE': move forward a certain (cm) e.g MOVE forward 10\n 'TURN' turn a certain amount (degrees) e.g TURN left 90\n 'SET' create variables e.g SET distance as 10 \n")
+                print("'help' shows this list\n 'MOVE' move forward a certain (cm) e.g MOVE forward 10\n 'TURN' turn a certain amount (degrees) e.g TURN left 90\n 'SET' create variables e.g SET distance as 10 \n 'UPDATE' update variables e.g UPDATE distance as 25\n 'REPEAT' repeats indented code x number of times e.g REPEAT 10..\n 'CLEAR' clears the program and all variables\n 'END' terminate the program\n 'RUN' run the program")
                 continue
 
             if first_word == "RECALL":
@@ -404,6 +404,9 @@ class Interpreter:
                 program_node.children = []
                 self.stack = [program_node]
                 continue
+
+            if first_word == "END":
+                break
 
             type_of_logic = check_which_node_type(first_word)
 
